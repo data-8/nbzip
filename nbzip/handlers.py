@@ -1,15 +1,17 @@
 from tornado import gen, web, locks
-import traceback
-import urllib.parse
-
 from notebook.utils import url_path_join
 from notebook.base.handlers import IPythonHandler
+from queue import Queue, Empty
+
+import traceback
+import urllib.parse
 import threading
 import json
 import os
-from queue import Queue, Empty
 import jinja2
 import zipfile
+
+TEMP_ZIP_NAME = 'notebook.zip'
 
 class ZipHandler(IPythonHandler):
     def __init__(self, *args, **kwargs):
@@ -36,13 +38,21 @@ class ZipHandler(IPythonHandler):
             self.set_header('content-type', 'text/event-stream')
             self.set_header('cache-control', 'no-cache')
 
+            self.emit({'output': 'Removing old {}...\n'.format(TEMP_ZIP_NAME), 'phase': 'zipping'})
+
+            if os.path.isfile(TEMP_ZIP_NAME):
+                os.remove(TEMP_ZIP_NAME)
+                self.emit({'output': 'Removed old {}!\n'.format(TEMP_ZIP_NAME), 'phase': 'zipping'})
+            else:
+                self.emit({'output': '{} does not exist!\n'.format(TEMP_ZIP_NAME), 'phase': 'zipping'})
+
             self.emit({'output': 'Zipping files:\n', 'phase': 'zipping'})
 
             q = Queue()
             def zip():
                 try:
                     file_name = None
-                    zipf = zipfile.ZipFile('notebook.zip', 'w', zipfile.ZIP_DEFLATED)
+                    zipf = zipfile.ZipFile(TEMP_ZIP_NAME, 'w', zipfile.ZIP_DEFLATED)
                     for root, dirs, files in os.walk('./'):
                         for file in files:
                             file_name = os.path.join(root, file)

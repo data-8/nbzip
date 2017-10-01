@@ -1,7 +1,8 @@
-import os
 from notebook.utils import url_path_join
 from .handlers import ZipHandler, UIHandler
 from tornado.web import StaticFileHandler
+
+import os
 
 # Jupyter Extension points
 def _jupyter_server_extension_paths():
