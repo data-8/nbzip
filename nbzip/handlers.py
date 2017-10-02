@@ -17,6 +17,21 @@ class ZipHandler(IPythonHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def _emit_progress(self, progress):
+        if isinstance(progress, Exception):
+            self.emit({
+                'phase': 'error',
+                'message': str(progress),
+                'output': '\n'.join([
+                    l.strip()
+                    for l in traceback.format_exception(
+                        type(progress), progress, progress.__traceback__
+                    )
+                ])
+            })
+        else:
+            self.emit({'output': progress, 'phase': 'zipping'})
+
     @gen.coroutine
     def emit(self, data):
         if type(data) is not str:
@@ -65,8 +80,8 @@ class ZipHandler(IPythonHandler):
                 except Exception as e:
                     q.put_nowait(e)
                     raise e
-            self.gp_thread = threading.Thread(target=zip)
 
+            self.gp_thread = threading.Thread(target=zip)
             self.gp_thread.start()
 
             while True:
@@ -77,33 +92,11 @@ class ZipHandler(IPythonHandler):
                     continue
                 if progress is None:
                     break
-                if isinstance(progress, Exception):
-                    self.emit({
-                        'phase': 'error',
-                        'message': str(progress),
-                        'output': '\n'.join([
-                            l.strip()
-                            for l in traceback.format_exception(
-                                type(progress), progress, progress.__traceback__
-                            )
-                        ])
-                    })
-                    return
-
-                self.emit({'output': progress, 'phase': 'zipping'})
+                self._emit_progress(progress)
 
             self.emit({'phase': 'finished', 'redirect': url_path_join(base_url, 'tree')})
         except Exception as e:
-            self.emit({
-                'phase': 'error',
-                'message': str(e),
-                'output': '\n'.join([
-                    l.strip()
-                    for l in traceback.format_exception(
-                        type(e), e, e.__traceback__
-                    )
-                ])
-            })
+            self._emit_progress(e)
 
 
 class UIHandler(IPythonHandler):
