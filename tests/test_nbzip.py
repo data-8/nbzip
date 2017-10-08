@@ -3,11 +3,16 @@ import os
 import time
 import logging
 import requests
+import json
 from nbzip.handlers import TEMP_ZIP_NAME
 
 
 TIMEOUT = 10  # in seconds
 logging.getLogger().setLevel(logging.INFO)
+
+
+def standardize_json_output(line):
+    return sorted(json.loads(line[6:]))
 
 
 def run_and_log(cmd):
@@ -94,7 +99,7 @@ def test_zip():
         )
         for line in resp.iter_lines():
             if line != b'':
-                assert line.decode('utf-8') == next(expected_stream)
+                assert standardize_json_output(line.decode('utf-8')) == standardize_json_output(next(expected_stream))
         try:
             next(expected_stream)
             raise AssertionError("The event stream is shorter than expected.")
