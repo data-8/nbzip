@@ -4,6 +4,7 @@ import time
 import logging
 import requests
 import json
+import zipfile
 from nbzip.handlers import TEMP_ZIP_NAME
 
 
@@ -46,6 +47,10 @@ def create_new_file(file_name, content):
         file.write(content)
 
 
+def get_file_contents(file_name):
+    return open(file_name, "r").read()
+
+
 def create_test_files(test_dir_name):
     os.makedirs(test_dir_name)
     os.chdir(test_dir_name)
@@ -63,17 +68,7 @@ def create_test_files(test_dir_name):
     create_new_file("dir4/testfile8.txt", "8")
 
 
-def test_zip():
-    run_and_log("jupyter serverextension enable --py nbzip")
-    run_and_log("jupyter nbextension enable --py nbzip")
-
-    create_test_files('testenv')
-
-    os.system("jupyter-notebook --port=8888 --no-browser &")
-
-    if (not wait_for_notebook_to_start()):
-        return
-
+def check_stream_output():
     expected_stream = iter([
         'data: {"output": "Removing old notebook.zip...\\n", "phase": "zipping"}',
         'data: {{"output": "{} does not exist!\\n", "phase": "zipping"}}'.format(TEMP_ZIP_NAME),
@@ -108,6 +103,50 @@ def test_zip():
     except (StopIteration, AssertionError) as e:
         logging.error("Event stream does not match expected output!")
         raise e
+
+
+def unzip_zipped_file(dir_name):
+    zipped_file = zipfile.ZipFile(TEMP_ZIP_NAME, 'r')
+    zipped_file.extractall(dir_name)
+    zipped_file.close()
+
+
+def check_zipped_file_contents():
+    contents_dir_name = '{}.contents'.format(TEMP_ZIP_NAME)
+    unzip_zipped_file(contents_dir_name)
+
+    os.chdir(contents_dir_name)
+
+    assert get_file_contents("testfile1.txt") == "1"
+    assert get_file_contents("dir1/testfile2.txt") == "2"
+    assert get_file_contents("dir1/testfile3.txt") == "3"
+    assert get_file_contents("dir1/dir2/testfile4.txt") == "4"
+    assert get_file_contents("dir1/dir3/testfile5.txt") == "5"
+    assert get_file_contents("dir1/dir3/testfile6.txt") == "6"
+    assert get_file_contents("dir4/testfile7.txt") == "7"
+    assert get_file_contents("dir4/testfile8.txt") == "8"
+
+    num_of_files = 0
+    for root, dirs, files in os.walk('./'):
+        for file in files:
+            num_of_files += 1
+    assert num_of_files == 8
+
+
+def test_zip():
+    run_and_log("jupyter serverextension enable --py nbzip")
+    run_and_log("jupyter nbextension enable --py nbzip")
+
+    create_test_files('testenv')
+
+    os.system("jupyter-notebook --port=8888 --no-browser &")
+
+    if (not wait_for_notebook_to_start()):
+        return
+
+    try:
+        check_stream_output()
+        check_zipped_file_contents()
     finally:
         logging.info("Shutting down notebook server...")
         os.system("jupyter notebook stop 8888")
