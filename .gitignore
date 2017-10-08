@@ -103,3 +103,4 @@ ENV/
 # osx
 *.DS_Store
 notebook.zip
+testenv/

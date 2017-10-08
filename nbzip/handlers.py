@@ -1,10 +1,9 @@
-from tornado import gen, web, locks
+from tornado import gen
 from notebook.utils import url_path_join
 from notebook.base.handlers import IPythonHandler
 from queue import Queue, Empty
 
 import traceback
-import urllib.parse
 import threading
 import json
 import os
@@ -12,6 +11,7 @@ import jinja2
 import zipfile
 
 TEMP_ZIP_NAME = 'notebook.zip'
+
 
 class ZipHandler(IPythonHandler):
     def __init__(self, *args, **kwargs):
@@ -64,6 +64,7 @@ class ZipHandler(IPythonHandler):
             self.emit({'output': 'Zipping files:\n', 'phase': 'zipping'})
 
             q = Queue()
+
             def zip():
                 try:
                     file_name = None
@@ -71,6 +72,8 @@ class ZipHandler(IPythonHandler):
                     for root, dirs, files in os.walk('./'):
                         for file in files:
                             file_name = os.path.join(root, file)
+                            if file_name == os.path.join("./", TEMP_ZIP_NAME):
+                                continue
                             q.put_nowait("{}\n".format(file_name))
                             zipf.write(file_name)
                     zipf.close()

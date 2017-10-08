@@ -4,19 +4,22 @@ from tornado.web import StaticFileHandler
 
 import os
 
+
 # Jupyter Extension points
 def _jupyter_server_extension_paths():
     return [{
         'module': 'nbzip',
     }]
 
+
 def _jupyter_nbextension_paths():
     return [{
-        "section":"tree",
-        "dest":"nbzip",
-        "src":"static",
-        "require":"nbzip/tree"
+        "section": "tree",
+        "dest": "nbzip",
+        "src": "static",
+        "require": "nbzip/tree"
     }]
+
 
 def load_jupyter_server_extension(nbapp):
     web_app = nbapp.web_app
