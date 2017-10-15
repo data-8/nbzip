@@ -2,9 +2,10 @@ import subprocess
 import os
 import time
 import logging
-import requests
 import json
-import zipfile
+import shutil
+import urllib.request
+import tarfile
 from nbzip.handlers import TEMP_ZIP_NAME
 
 
@@ -52,6 +53,8 @@ def get_file_contents(file_name):
 
 
 def create_test_files(test_dir_name):
+    if os.path.exists(test_dir_name):
+        shutil.rmtree(test_dir_name)
     os.makedirs(test_dir_name)
     os.chdir(test_dir_name)
     create_new_file("testfile1.txt", "1")
@@ -68,47 +71,10 @@ def create_test_files(test_dir_name):
     create_new_file("dir4/testfile8.txt", "8")
 
 
-def check_stream_output():
-    expected_stream = iter([
-        'data: {"output": "Removing old notebook.zip...\\n", "phase": "zipping"}',
-        'data: {{"output": "{} does not exist!\\n", "phase": "zipping"}}'.format(TEMP_ZIP_NAME),
-        'data: {"output": "Zipping files:\\n", "phase": "zipping"}',
-        'data: {"output": "./testfile1.txt\\n", "phase": "zipping"}',
-        'data: {"output": "./dir1/testfile2.txt\\n", "phase": "zipping"}',
-        'data: {"output": "./dir1/testfile3.txt\\n", "phase": "zipping"}',
-        'data: {"output": "./dir1/dir2/testfile4.txt\\n", "phase": "zipping"}',
-        'data: {"output": "./dir1/dir3/testfile5.txt\\n", "phase": "zipping"}',
-        'data: {"output": "./dir1/dir3/testfile6.txt\\n", "phase": "zipping"}',
-        'data: {"output": "./dir4/testfile7.txt\\n", "phase": "zipping"}',
-        'data: {"output": "./dir4/testfile8.txt\\n", "phase": "zipping"}',
-        'data: {"phase": "finished", "redirect": "http://localhost:8888/tree"}'
-    ])
-
-    try:
-        resp = requests.get(
-            url="http://localhost:8888/zip-download/api",
-            params={
-                "baseUrl": "http://localhost:8888"
-            },
-            stream=True
-        )
-        for line in resp.iter_lines():
-            if line != b'':
-                assert standardize_json_output(line.decode('utf-8')) == standardize_json_output(next(expected_stream))
-        try:
-            next(expected_stream)
-            raise AssertionError("The event stream is shorter than expected.")
-        except StopIteration:
-            logging.info("Entire event stream matched expected output! :)")
-    except (StopIteration, AssertionError) as e:
-        logging.error("Event stream does not match expected output!")
-        raise e
-
-
 def unzip_zipped_file(dir_name):
-    zipped_file = zipfile.ZipFile(TEMP_ZIP_NAME, 'r')
-    zipped_file.extractall(dir_name)
-    zipped_file.close()
+    tar_file = tarfile.open(fileobj=download_zip_file(), mode='r:gz')
+    tar_file.extractall(dir_name)
+    tar_file.close()
 
 
 def check_zipped_file_contents():
@@ -133,6 +99,12 @@ def check_zipped_file_contents():
     assert num_of_files == 8
 
 
+def download_zip_file():
+    return urllib.request.urlopen(
+        "http://localhost:8888/zip-download?baseUrl=1&zipToken=1"
+    )
+
+
 def test_zip():
     run_and_log("jupyter serverextension enable --py nbzip")
     run_and_log("jupyter nbextension enable --py nbzip")
@@ -145,7 +117,6 @@ def test_zip():
         return
 
     try:
-        check_stream_output()
         check_zipped_file_contents()
     finally:
         logging.info("Shutting down notebook server...")

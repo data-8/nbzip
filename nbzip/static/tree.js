@@ -1,3 +1,5 @@
+
+
 define([
     'jquery',
     'base/js/utils',
@@ -5,6 +7,23 @@ define([
 ], function (
     $, utils, Jupyter
 ) {
+
+    // inspired by: https://stackoverflow.com/questions/1106377/detect-when-browser-receives-file-download
+    currToken = null;
+
+    var newToken = function () {
+      return new Date().getTime();
+    }
+
+    getCookie = function ( name ) {
+      var parts = document.cookie.split(name + "=");
+      if (parts.length == 2) return parts.pop().split(";").shift();
+    }
+
+    expireCookie = function ( cName ) {
+        document.cookie = 
+            encodeURIComponent(cName) + "=deleted; expires=" + new Date( 0 ).toUTCString();
+    }
 
     var load_ipython_extension = function () {
         $(".col-sm-8.no-padding").attr('class', 'col-sm-4 no-padding');
@@ -14,7 +33,24 @@ define([
           $('<div>').addClass('btn-group').attr('id', 'nbzip-link').prepend(
                '<button class="btn btn-xs btn-default" title="Zip Notebook"><i class="fa-download fa"></i></button>'
           ).click(function() {
-             window.location.href = utils.get_body_data('baseUrl') + 'zip-download'
+            baseUrl = utils.get_body_data('baseUrl');
+            currToken = newToken();
+
+            window.location.href = baseUrl + 'zip-download?baseUrl=' + baseUrl + '&zipToken=' + currToken;
+            $("#nbzip-link").html("Zipping...");
+
+            tid = setInterval(function() {
+              if (getCookie("zipToken") == currToken) {
+                console.log("Finished zipping & downloading notebook.");
+                clearInterval(tid);
+                expireCookie("zipToken");
+                $("#nbzip-link").html(
+                  '<button class="btn btn-xs btn-default" title="Zip Notebook"><i class="fa-download fa"></i></button>'
+                )
+              } else {
+                console.log("Still zipping...");
+              }
+            }, 1000);
           })
         )
     };

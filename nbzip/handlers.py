@@ -5,12 +5,25 @@ from queue import Queue, Empty
 
 import traceback
 import threading
-import json
 import os
-import jinja2
-import zipfile
 
-TEMP_ZIP_NAME = 'notebook.zip'
+
+import tarfile
+
+TEMP_ZIP_NAME = 'notebook.tar.gz'
+
+
+class ZipStream(object):
+    def __init__(self, handler):
+        self.handler = handler
+        self.position = 0
+
+    def write(self, data):
+        self.position += len(data)
+        self.handler.write(data)
+
+    def tell(self):
+        return self.position
 
 
 class ZipHandler(IPythonHandler):
@@ -35,31 +48,21 @@ class ZipHandler(IPythonHandler):
     @gen.coroutine
     def emit(self, data):
         if type(data) is not str:
-            serialized_data = json.dumps(data)
             if 'output' in data:
                 self.log.info(data['output'].rstrip())
         else:
-            serialized_data = data
             self.log.info(data)
-        self.write('data: {}\n\n'.format(serialized_data))
-        yield self.flush()
 
     @gen.coroutine
     def get(self):
         try:
             base_url = self.get_argument('baseUrl')
+            zip_token = self.get_argument('zipToken')
 
             # We gonna send out event streams!
-            self.set_header('content-type', 'text/event-stream')
+            self.set_header('content-type', 'application/octet-stream')
             self.set_header('cache-control', 'no-cache')
-
-            self.emit({'output': 'Removing old {}...\n'.format(TEMP_ZIP_NAME), 'phase': 'zipping'})
-
-            if os.path.isfile(TEMP_ZIP_NAME):
-                os.remove(TEMP_ZIP_NAME)
-                self.emit({'output': 'Removed old {}!\n'.format(TEMP_ZIP_NAME), 'phase': 'zipping'})
-            else:
-                self.emit({'output': '{} does not exist!\n'.format(TEMP_ZIP_NAME), 'phase': 'zipping'})
+            self.set_header('content-disposition', 'attachment; filename=\"{}\"'.format(TEMP_ZIP_NAME))
 
             self.emit({'output': 'Zipping files:\n', 'phase': 'zipping'})
 
@@ -68,15 +71,15 @@ class ZipHandler(IPythonHandler):
             def zip():
                 try:
                     file_name = None
-                    zipf = zipfile.ZipFile(TEMP_ZIP_NAME, 'w', zipfile.ZIP_DEFLATED)
-                    for root, dirs, files in os.walk('./'):
-                        for file in files:
-                            file_name = os.path.join(root, file)
-                            if file_name == os.path.join("./", TEMP_ZIP_NAME):
-                                continue
-                            q.put_nowait("{}\n".format(file_name))
-                            zipf.write(file_name)
-                    zipf.close()
+                    # zipf = zipfile.ZipFile(TEMP_ZIP_NAME, 'w', zipfile.ZIP_DEFLATED)
+                    with tarfile.open(fileobj=ZipStream(self), mode='w:gz') as tar:
+                        for root, dirs, files in os.walk('./'):
+                            for file in files:
+                                file_name = os.path.join(root, file)
+                                if file_name == os.path.join("./", TEMP_ZIP_NAME):
+                                    continue
+                                q.put_nowait("{}\n".format(file_name))
+                                tar.add(file_name)
 
                     # Sentinel when we're done
                     q.put_nowait(None)
@@ -97,29 +100,7 @@ class ZipHandler(IPythonHandler):
                     break
                 self._emit_progress(progress)
 
+            self.set_cookie("zipToken", zip_token)
             self.emit({'phase': 'finished', 'redirect': url_path_join(base_url, 'tree')})
         except Exception as e:
             self._emit_progress(e)
-
-
-class UIHandler(IPythonHandler):
-    def initialize(self):
-        super().initialize()
-        # FIXME: Is this really the best way to use jinja2 here?
-        # I can't seem to get the jinja2 env in the base handler to
-        # actually load templates from arbitrary paths ugh.
-        jinja2_env = self.settings['jinja2_env']
-        jinja2_env.loader = jinja2.ChoiceLoader([
-            jinja2_env.loader,
-            jinja2.FileSystemLoader(
-                os.path.join(os.path.dirname(__file__), 'templates')
-            )
-        ])
-
-    @gen.coroutine
-    def get(self):
-        self.write(
-            self.render_template(
-                'status.html'
-            ))
-        self.flush()
