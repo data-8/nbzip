@@ -1,5 +1,3 @@
-
-
 define([
     'jquery',
     'base/js/utils',
@@ -9,7 +7,7 @@ define([
 ) {
 
     // inspired by: https://stackoverflow.com/questions/1106377/detect-when-browser-receives-file-download
-    currToken = null;
+    var currToken = null;
 
     var newToken = function () {
       return new Date().getTime();
@@ -33,10 +31,11 @@ define([
           $('<div>').addClass('btn-group').attr('id', 'nbzip-link').prepend(
                '<button class="btn btn-xs btn-default" title="Zip Notebook"><i class="fa-download fa"></i></button>'
           ).click(function() {
-            baseUrl = utils.get_body_data('baseUrl');
+            baseUrl = document.origin;
+            zipPath = document.title.replace(/\/$/, ''); // get rid of trailing slash.
             currToken = newToken();
 
-            window.location.href = baseUrl + 'zip-download?baseUrl=' + baseUrl + '&zipToken=' + currToken;
+            window.location.href = baseUrl + '/zip-download?zipPath=' + zipPath + '&zipToken=' + currToken;
             $("#nbzip-link").html("Zipping...");
 
             tid = setInterval(function() {
