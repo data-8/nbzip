@@ -10,7 +10,7 @@ setuptools.setup(
     install_requires=[
         'notebook', 'pytest'
     ],
-    package_data={'nbpuller': ['static/*']},
+    package_data={'nbzip': ['static/*']},
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: BSD License',
