@@ -5,6 +5,7 @@ setuptools.setup(
     version='0.0.1',
     url="https://github.com/data-8/nbzip",
     author="Data 8 @ UC Berkeley",
+    author_email="peterkangveerman@berkeley.edu",
     description="Zips and downloads all the contents of a jupyter notebook.",
     packages=setuptools.find_packages(),
     install_requires=[
