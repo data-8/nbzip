@@ -2,7 +2,7 @@ from tornado import gen, web
 from notebook.base.handlers import IPythonHandler
 
 import os
-import tarfile
+import zipfile
 
 
 class ZipStream(object):
@@ -16,6 +16,9 @@ class ZipStream(object):
 
     def tell(self):
         return self.position
+
+    def flush(self):
+        self.handler.flush()
 
 
 class ZipHandler(IPythonHandler):
@@ -33,7 +36,7 @@ class ZipHandler(IPythonHandler):
         self.set_header('cache-control', 'no-cache')
         self.set_header(
             'content-disposition',
-            'attachment; filename=\"notebook-{}.tar.gz\"'.format(zip_path)
+            'attachment; filename=\"notebook-{}.zip\"'.format(zip_path)
         )
 
         if zip_path == 'Home':
@@ -42,12 +45,12 @@ class ZipHandler(IPythonHandler):
         self.log.info('zipping')
 
         file_name = None
-        with tarfile.open(fileobj=ZipStream(self), mode='w:gz') as tar:
+        with zipfile.ZipFile(ZipStream(self), mode='w') as zf:
             for root, dirs, files in os.walk(zip_path):
                 for file in files:
                     file_name = os.path.join(root, file)
                     self.log.info("{}\n".format(file_name))
-                    tar.add(file_name, arcname=os.path.join(root[len(zip_path):], file))
+                    zf.write(file_name, arcname=os.path.join(root[len(zip_path):], file))
 
         self.set_cookie("zipToken", zip_token)
         self.log.info('Finished zipping')
