@@ -31,7 +31,7 @@ define([
           $('<div>').addClass('btn-group').attr('id', 'nbzip-link').prepend(
                '<button class="btn btn-xs btn-default" title="Zip Notebook"><i class="fa-download fa"></i></button>'
           ).click(function() {
-            baseUrl = document.origin;
+            baseUrl = document.location.origin;
             zipPath = document.title.replace(/\/$/, ''); // get rid of trailing slash.
             currToken = newToken();
 
