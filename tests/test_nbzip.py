@@ -1,12 +1,13 @@
 from notebook.notebookapp import list_running_servers
 import subprocess
+import io
 import os
 import time
 import logging
 import json
 import shutil
 import urllib.request
-import tarfile
+import zipfile
 
 
 TIMEOUT = 10  # in seconds
@@ -73,9 +74,9 @@ def create_test_files(test_dir_name):
 def unzip_zipped_file(dir_name, download_path, token):
     if os.path.exists(dir_name):
         shutil.rmtree(dir_name)
-    tar_file = tarfile.open(fileobj=download_zip_file(download_path, token), mode='r:gz')
-    tar_file.extractall(dir_name)
-    tar_file.close()
+    zip_file = zipfile.ZipFile(download_zip_file(download_path, token), mode='r')
+    zip_file.extractall(dir_name)
+    zip_file.close()
 
 
 def check_zipped_file_contents(env_dir, download_path, token):
@@ -110,7 +111,7 @@ def download_zip_file(download_path, token):
             'Authorization': 'Token {}'.format(token)
         }
     )
-    return urllib.request.urlopen(req)
+    return io.BytesIO(urllib.request.urlopen(req).read())
 
 
 def test_zip():
