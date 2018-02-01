@@ -11,6 +11,7 @@ import zipfile
 
 
 TIMEOUT = 10  # in seconds
+PORT = 18888
 logging.getLogger().setLevel(logging.INFO)
 
 
@@ -32,7 +33,7 @@ def run_and_return(cmd):
 def wait_for_notebook_to_start():
     wait_time = 0
     logging.info("waiting for notebook to start...")
-    while ("localhost:8888" not in run_and_return("jupyter notebook list")):
+    while ("localhost:{}".format(PORT) not in run_and_return("jupyter notebook list")):
         if (wait_time >= TIMEOUT):
             logging.info("Test timed out...")
             return False
@@ -106,7 +107,7 @@ def get_all_file_contents(dir):
 
 def download_zip_file(download_path, token):
     req = urllib.request.Request(
-        "http://localhost:8888/zip-download?zipPath={}&zipToken=1".format(download_path),
+        "http://localhost:{}/zip-download?zipPath={}&zipToken=1".format(PORT, download_path),
         headers={
             'Authorization': 'Token {}'.format(token)
         }
@@ -121,10 +122,10 @@ def test_zip():
     env_dir = 'testenv'
     create_test_files(env_dir)
 
-    os.system("jupyter-notebook --port=8888 --no-browser &")
+    os.system("jupyter-notebook --port={} --no-browser &".format(PORT))
 
     if (not wait_for_notebook_to_start()):
-        return
+        assert False, "Notebook server failed to start"
 
     server = next(list_running_servers())
     token = server['token']
@@ -137,4 +138,4 @@ def test_zip():
         check_zipped_file_contents(env_dir, 'dir/4', token)
     finally:
         logging.info("Shutting down notebook server...")
-        os.system("jupyter notebook stop 8888")
+        os.system("jupyter notebook stop {}".format(PORT))
