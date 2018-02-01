@@ -39,7 +39,7 @@ class ZipHandler(IPythonHandler):
             'attachment; filename=\"notebook-{}.zip\"'.format(zip_path)
         )
 
-        if zip_path == 'Home':
+        if zip_path == '':
             zip_path = '.'
 
         self.log.info('zipping')

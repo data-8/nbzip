@@ -19,7 +19,7 @@ define([
     }
 
     expireCookie = function ( cName ) {
-        document.cookie = 
+        document.cookie =
             encodeURIComponent(cName) + "=deleted; expires=" + new Date( 0 ).toUTCString();
     }
 
@@ -31,11 +31,11 @@ define([
           $('<div>').addClass('btn-group').attr('id', 'nbzip-link').prepend(
                '<button class="btn btn-xs btn-default" title="Zip Notebook"><i class="fa-download fa"></i></button>'
           ).click(function() {
-            baseUrl = utils.get_body_data('baseUrl');
-            zipPath = document.title.replace(/\/$/, ''); // get rid of trailing slash.
+            baseUrl = document.location.origin + document.body.getAttribute('data-base-url');
+            zipPath = document.body.getAttribute('data-notebook-path');
             currToken = newToken();
 
-            window.location.href = baseUrl + '/zip-download?zipPath=' + zipPath + '&zipToken=' + currToken;
+            window.location.href = baseUrl + 'zip-download?zipPath=' + zipPath + '&zipToken=' + currToken;
             $("#nbzip-link").html("Zipping...");
 
             tid = setInterval(function() {
