@@ -1,5 +1,6 @@
 from notebook.notebookapp import list_running_servers
 import subprocess
+import io
 import os
 import time
 import logging
@@ -7,9 +8,11 @@ import json
 import shutil
 import urllib.request
 import tarfile
+import zipfile
 
 
 TIMEOUT = 10  # in seconds
+PORT = 18888
 logging.getLogger().setLevel(logging.INFO)
 
 
@@ -31,7 +34,7 @@ def run_and_return(cmd):
 def wait_for_notebook_to_start():
     wait_time = 0
     logging.info("waiting for notebook to start...")
-    while ("localhost:8888" not in run_and_return("jupyter notebook list")):
+    while ("localhost:{}".format(PORT) not in run_and_return("jupyter notebook list")):
         if (wait_time >= TIMEOUT):
             logging.info("Test timed out...")
             return False
@@ -70,22 +73,25 @@ def create_test_files(test_dir_name):
     create_new_file(os.path.join(test_dir_name, "dir4/testfile8.txt"), "8")
 
 
-def unzip_zipped_file(dir_name, download_path, token):
+def unzip_zipped_file(dir_name, download_path, token, fmt):
     if os.path.exists(dir_name):
         shutil.rmtree(dir_name)
-    tar_file = tarfile.open(fileobj=download_zip_file(download_path, token), mode='r:gz')
-    tar_file.extractall(dir_name)
-    tar_file.close()
+    if fmt == 'tar.gz':
+        zip_file = tarfile.open(fileobj=download_zip_file(download_path, token, fmt), mode='r:gz')
+    else:
+        zip_file = zipfile.ZipFile(download_zip_file(download_path, token, fmt), mode='r')
+    zip_file.extractall(dir_name)
+    zip_file.close()
 
 
-def check_zipped_file_contents(env_dir, download_path, token):
+def check_zipped_file_contents(env_dir, download_path, token, fmt):
     if download_path == 'Home':
         download_path = ''
     download_path = os.path.join(env_dir, download_path)
     file_value_pairs = get_all_file_contents(download_path)
 
     contents_dir_name = '{}.contents'.format(download_path.replace('/', '-'))
-    unzip_zipped_file(contents_dir_name, download_path, token)
+    unzip_zipped_file(contents_dir_name, download_path, token, fmt)
 
     for pair in file_value_pairs:
         assert get_file_contents(os.path.join(contents_dir_name, pair[0])) == pair[1]
@@ -103,14 +109,14 @@ def get_all_file_contents(dir):
     return ret
 
 
-def download_zip_file(download_path, token):
+def download_zip_file(download_path, token, fmt):
     req = urllib.request.Request(
-        "http://localhost:8888/zip-download?zipPath={}&zipToken=1".format(download_path),
+        "http://localhost:{}/zip-download?zipPath={}&zipToken=1&format={}".format(PORT, download_path, fmt),
         headers={
             'Authorization': 'Token {}'.format(token)
         }
     )
-    return urllib.request.urlopen(req)
+    return io.BytesIO(urllib.request.urlopen(req).read())
 
 
 def test_zip():
@@ -120,20 +126,18 @@ def test_zip():
     env_dir = 'testenv'
     create_test_files(env_dir)
 
-    os.system("jupyter-notebook --port=8888 --no-browser &")
+    os.system("jupyter-notebook --port={} --no-browser &".format(PORT))
 
     if (not wait_for_notebook_to_start()):
-        return
+        assert False, "Notebook server failed to start"
 
     server = next(list_running_servers())
     token = server['token']
 
     try:
-        check_zipped_file_contents(env_dir, 'Home', token)
-        check_zipped_file_contents(env_dir, 'dir1/', token)
-        check_zipped_file_contents(env_dir, 'dir1/dir2', token)
-        check_zipped_file_contents(env_dir, 'dir1/dir3', token)
-        check_zipped_file_contents(env_dir, 'dir/4', token)
+        for fmt in ('zip', 'tar.gz'):
+            for path in ('Home', 'dir1/', 'dir1/dir2', 'dir1/dir3', 'dir/4'):
+                check_zipped_file_contents(env_dir, path, token, fmt)
     finally:
         logging.info("Shutting down notebook server...")
-        os.system("jupyter notebook stop 8888")
+        os.system("jupyter notebook stop {}".format(PORT))
