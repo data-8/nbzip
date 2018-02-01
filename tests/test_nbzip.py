@@ -7,6 +7,7 @@ import logging
 import json
 import shutil
 import urllib.request
+import tarfile
 import zipfile
 
 
@@ -72,22 +73,25 @@ def create_test_files(test_dir_name):
     create_new_file(os.path.join(test_dir_name, "dir4/testfile8.txt"), "8")
 
 
-def unzip_zipped_file(dir_name, download_path, token):
+def unzip_zipped_file(dir_name, download_path, token, fmt):
     if os.path.exists(dir_name):
         shutil.rmtree(dir_name)
-    zip_file = zipfile.ZipFile(download_zip_file(download_path, token), mode='r')
+    if fmt == 'tar.gz':
+        zip_file = tarfile.open(fileobj=download_zip_file(download_path, token, fmt), mode='r:gz')
+    else:
+        zip_file = zipfile.ZipFile(download_zip_file(download_path, token, fmt), mode='r')
     zip_file.extractall(dir_name)
     zip_file.close()
 
 
-def check_zipped_file_contents(env_dir, download_path, token):
+def check_zipped_file_contents(env_dir, download_path, token, fmt):
     if download_path == 'Home':
         download_path = ''
     download_path = os.path.join(env_dir, download_path)
     file_value_pairs = get_all_file_contents(download_path)
 
     contents_dir_name = '{}.contents'.format(download_path.replace('/', '-'))
-    unzip_zipped_file(contents_dir_name, download_path, token)
+    unzip_zipped_file(contents_dir_name, download_path, token, fmt)
 
     for pair in file_value_pairs:
         assert get_file_contents(os.path.join(contents_dir_name, pair[0])) == pair[1]
@@ -105,9 +109,9 @@ def get_all_file_contents(dir):
     return ret
 
 
-def download_zip_file(download_path, token):
+def download_zip_file(download_path, token, fmt):
     req = urllib.request.Request(
-        "http://localhost:{}/zip-download?zipPath={}&zipToken=1".format(PORT, download_path),
+        "http://localhost:{}/zip-download?zipPath={}&zipToken=1&format={}".format(PORT, download_path, fmt),
         headers={
             'Authorization': 'Token {}'.format(token)
         }
@@ -131,11 +135,9 @@ def test_zip():
     token = server['token']
 
     try:
-        check_zipped_file_contents(env_dir, 'Home', token)
-        check_zipped_file_contents(env_dir, 'dir1/', token)
-        check_zipped_file_contents(env_dir, 'dir1/dir2', token)
-        check_zipped_file_contents(env_dir, 'dir1/dir3', token)
-        check_zipped_file_contents(env_dir, 'dir/4', token)
+        for fmt in ('zip', 'tar.gz'):
+            for path in ('Home', 'dir1/', 'dir1/dir2', 'dir1/dir3', 'dir/4'):
+                check_zipped_file_contents(env_dir, path, token, fmt)
     finally:
         logging.info("Shutting down notebook server...")
         os.system("jupyter notebook stop {}".format(PORT))
