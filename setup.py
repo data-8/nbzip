@@ -2,11 +2,11 @@ import setuptools
 
 setuptools.setup(
     name="nbzip",
-    version='0.0.3',
+    version='0.0.4',
     url="https://github.com/data-8/nbzip",
     author="Data 8 @ UC Berkeley",
     author_email="peterkangveerman@berkeley.edu",
-    description="Zips and downloads all files in any of the user's directories.",
+    description="Compresses and downloads all files in any of the user's directories.",
     packages=setuptools.find_packages(),
     install_requires=[
         'notebook', 'pytest'
@@ -20,6 +20,7 @@ setuptools.setup(
         'Operating System :: Unix',
         'Programming Language :: Python :: 3',
         'Topic :: Software Development :: Libraries :: Python Modules',
+        'Framework :: Jupyter',
     ]
 )
 
