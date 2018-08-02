@@ -8,6 +8,7 @@ import json
 import shutil
 import urllib.request
 import tarfile
+import tempfile
 import zipfile
 
 
@@ -52,7 +53,8 @@ def create_new_file(file_name, content):
 
 
 def get_file_contents(file_name):
-    return open(file_name, "r").read()
+    with open(file_name) as f:
+        return f.read()
 
 
 def create_test_files(test_dir_name):
@@ -73,7 +75,17 @@ def create_test_files(test_dir_name):
     create_new_file(os.path.join(test_dir_name, "dir4/testfile8.txt"), "8")
 
 
-def unzip_zipped_file(dir_name, download_path, token, fmt):
+def download_zip_file(download_path, token, fmt):
+    req = urllib.request.Request(
+        "http://localhost:{}/zip-download?zipPath={}&zipToken=1&format={}".format(PORT, download_path, fmt),
+        headers={
+            'Authorization': 'Token {}'.format(token)
+        }
+    )
+    return io.BytesIO(urllib.request.urlopen(req).read())
+
+
+def fetch_and_unzip(dir_name, download_path, token, fmt):
     if os.path.exists(dir_name):
         shutil.rmtree(dir_name)
     if fmt == 'tar.gz':
@@ -90,14 +102,14 @@ def check_zipped_file_contents(env_dir, download_path, token, fmt):
     download_path = os.path.join(env_dir, download_path)
     file_value_pairs = get_all_file_contents(download_path)
 
-    contents_dir_name = '{}.contents'.format(download_path.replace('/', '-'))
-    unzip_zipped_file(contents_dir_name, download_path, token, fmt)
+    with tempfile.TemporaryDirectory() as target_directory:
+        fetch_and_unzip(target_directory, download_path, token, fmt)
 
-    for pair in file_value_pairs:
-        assert get_file_contents(os.path.join(contents_dir_name, pair[0])) == pair[1]
+        for pair in file_value_pairs:
+            assert get_file_contents(os.path.join(target_directory, pair[0])) == pair[1]
 
-    num_of_files = len(get_all_file_contents(contents_dir_name))
-    assert num_of_files == len(file_value_pairs)
+        num_of_files = len(get_all_file_contents(target_directory))
+        assert num_of_files == len(file_value_pairs)
 
 
 def get_all_file_contents(dir):
@@ -109,22 +121,12 @@ def get_all_file_contents(dir):
     return ret
 
 
-def download_zip_file(download_path, token, fmt):
-    req = urllib.request.Request(
-        "http://localhost:{}/zip-download?zipPath={}&zipToken=1&format={}".format(PORT, download_path, fmt),
-        headers={
-            'Authorization': 'Token {}'.format(token)
-        }
-    )
-    return io.BytesIO(urllib.request.urlopen(req).read())
-
-
 def test_zip():
     run_and_log("jupyter serverextension enable --py nbzip")
     run_and_log("jupyter nbextension enable --py nbzip")
 
-    env_dir = 'testenv'
-    create_test_files(env_dir)
+    source_directory = 'testenv'
+    create_test_files(source_directory)
 
     os.system("jupyter-notebook --port={} --no-browser &".format(PORT))
 
@@ -136,8 +138,8 @@ def test_zip():
 
     try:
         for fmt in ('zip', 'tar.gz'):
-            for path in ('Home', 'dir1/', 'dir1/dir2', 'dir1/dir3', 'dir/4'):
-                check_zipped_file_contents(env_dir, path, token, fmt)
+            for path in ('Home', 'dir1/', 'dir1/dir2', 'dir1/dir3', 'dir4'):
+                check_zipped_file_contents(source_directory, path, token, fmt)
     finally:
         logging.info("Shutting down notebook server...")
         os.system("jupyter notebook stop {}".format(PORT))

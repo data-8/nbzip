@@ -28,23 +28,23 @@ define([
         $(".col-sm-4.no-padding.tree-buttons").attr('class', 'col-sm-8 no-padding tree-buttons');
 
         $('#notebook_toolbar .pull-right').prepend(
-          $('<div>').addClass('btn-group').attr('id', 'nbzip-link').prepend(
-               '<button class="btn btn-xs btn-default" title="Zip Notebook"><i class="fa-download fa"></i></button>'
+          $('<div>').addClass('btn-group').attr('id', 'nbzip-ziplink').prepend(
+               '<button class="btn btn-xs btn-default" title="Download as ZIP"><i class="fa-download fa"></i></button>'
           ).click(function() {
             baseUrl = document.location.origin + document.body.getAttribute('data-base-url');
             zipPath = document.body.getAttribute('data-notebook-path');
             currToken = newToken();
 
-            window.location.href = baseUrl + 'zip-download?zipPath=' + zipPath + '&zipToken=' + currToken;
-            $("#nbzip-link").html("Zipping...");
+            window.location.href = baseUrl + 'zip-download?zipPath=' + zipPath + '&zipToken=' + currToken + 'format=zip';
+            $("#nbzip-ziplink").html("Zipping...");
 
             tid = setInterval(function() {
               if (getCookie("zipToken") == currToken) {
                 console.log("Finished zipping & downloading notebook.");
                 clearInterval(tid);
                 expireCookie("zipToken");
-                $("#nbzip-link").html(
-                  '<button class="btn btn-xs btn-default" title="Zip Notebook"><i class="fa-download fa"></i></button>'
+                $("#nbzip-ziplink").html(
+                  '<button class="btn btn-xs btn-default" title="Download as ZIP"><i class="fa-download fa"></i></button>'
                 )
               } else {
                 console.log("Still zipping...");
