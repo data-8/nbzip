@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="nbzip",
-    version='0.0.4',
+    version='0.1.0',
     url="https://github.com/data-8/nbzip",
     author="Data 8 @ UC Berkeley",
     author_email="peterkangveerman@berkeley.edu",
