@@ -31,7 +31,7 @@ define([
           $('<div>').addClass('btn-group').attr('id', 'nbzip-ziplink').prepend(
                '<button class="btn btn-xs btn-default" title="Download as ZIP"><i class="fa-download fa"></i></button>'
           ).click(function() {
-            baseUrl = document.location.origin + document.body.getAttribute('data-base-url');
+            baseUrl = document.location.origin + decodeURIComponent(document.body.getAttribute('data-base-url'));
             zipPath = document.body.getAttribute('data-notebook-path');
             currToken = newToken();
 
