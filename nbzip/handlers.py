@@ -39,7 +39,7 @@ class ZipHandler(IPythonHandler):
     @web.authenticated
     @gen.coroutine
     def get(self):
-        zip_path = urllib.parse.unescape(self.get_argument('zipPath'))
+        zip_path = urllib.parse.unquote(self.get_argument('zipPath'))
         zip_token = self.get_argument('zipToken')
         fmt = self.get_argument('format', 'zip')
 
