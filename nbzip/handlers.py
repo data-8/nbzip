@@ -4,6 +4,7 @@ from notebook.base.handlers import IPythonHandler
 import os
 import tarfile
 import zipfile
+import urllib.parse
 
 
 class ZipStream(object):
@@ -38,7 +39,7 @@ class ZipHandler(IPythonHandler):
     @web.authenticated
     @gen.coroutine
     def get(self):
-        zip_path = self.get_argument('zipPath')
+        zip_path = urllib.parse.unquote(self.get_argument('zipPath'))
         zip_token = self.get_argument('zipToken')
         fmt = self.get_argument('format', 'zip')
 
